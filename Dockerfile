@@ -13,5 +13,5 @@ ENV NODE_ENV=production
 
 EXPOSE 5678
 
-# Comando para iniciar n8n
-CMD ["/usr/local/bin/n8n"]
+# Este CMD sí funciona en Render
+CMD ["sh", "-c", "n8n"]
