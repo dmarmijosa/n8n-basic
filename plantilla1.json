@@ -1,0 +1,143 @@
+{
+    "name": "TaxiBot Workflow",
+    "nodes": [
+      {
+        "id": "1",
+        "name": "Telegram Trigger",
+        "type": "n8n-nodes-base.telegramTrigger",
+        "typeVersion": 1,
+        "position": [250, 300],
+        "credentials": {
+          "telegramApi": {
+            "id": "7200590511:AAFul-4QAXTjhBpqTTc7EN94UKoujaUBWHw"
+          }
+        },
+        "parameters": {
+          "update": "message"
+        }
+      },
+      {
+        "id": "2",
+        "name": "AI Agent",
+        "type": "n8n-nodes-base.deepSeekChat",
+        "typeVersion": 1,
+        "position": [450, 300],
+        "parameters": {
+          "model": "deepSeek-chat-model",
+          "prompt": "Eres un sistema de reservas de taxis. Necesito que devuelvas los siguientes datos en formato JSON solo si están presentes:\n\n{\n  \"nombre\": \"\",\n  \"telefono\": \"\",\n  \"ubicacion\": \"\",\n  \"destino\": \"\"\n}\n\nSi falta algún campo obligatorio (nombre, telefono o ubicación), responde con un mensaje claro solicitando al usuario que los proporcione. Solo responde en JSON cuando tengas la información completa."
+        }
+      },
+      {
+        "id": "3",
+        "name": "Validate Data",
+        "type": "n8n-nodes-base.function",
+        "typeVersion": 1,
+        "position": [650, 300],
+        "parameters": {
+          "functionCode": "const msg = items[0].json;\n\nconst nombre = msg.nombre;\nconst telefono = msg.telefono;\nconst ubicacion = msg.ubicacion;\nconst destino = msg.destino || null;\n\nif (nombre && telefono && ubicacion) {\n  return [{ json: { validacion: true, ...msg }}];\n} else {\n  return [{ json: { validacion: false, ...msg }}];\n}"
+        }
+      },
+      {
+        "id": "4",
+        "name": "If",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 1,
+        "position": [850, 300],
+        "parameters": {
+          "conditions": {
+            "boolean": [
+              {
+                "value1": "={{$json[\"validacion\"]}}",
+                "value2": true
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "5",
+        "name": "Send Confirmation",
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1,
+        "position": [1050, 260],
+        "credentials": {
+          "telegramApi": {
+            "id": "YOUR_TELEGRAM_CREDENTIAL_ID"
+          }
+        },
+        "parameters": {
+          "chatId": "={{$json[\"message\"][\"chat\"][\"id\"]}}",
+          "text": "🚖 ¡Gracias! Estamos procesando tu solicitud. Un taxi irá a tu ubicación en breve."
+        }
+      },
+      {
+        "id": "6",
+        "name": "Request Missing Data",
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1,
+        "position": [1050, 340],
+        "credentials": {
+          "telegramApi": {
+            "id": "YOUR_TELEGRAM_CREDENTIAL_ID"
+          }
+        },
+        "parameters": {
+          "chatId": "={{$json[\"message\"][\"chat\"][\"id\"]}}",
+          "text": "⚠️ Faltan algunos datos. Por favor, envíame la siguiente información:\n\n📍 Ubicación  \n👤 Nombre  \n📞 Teléfono  \n📌 (Opcional) Destino\n\nCuando los tengas listos, escríbelos todos en un solo mensaje. ¡Gracias!"
+        }
+      }
+    ],
+    "connections": {
+      "Telegram Trigger": {
+        "main": [
+          [
+            {
+              "node": "AI Agent",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "AI Agent": {
+        "main": [
+          [
+            {
+              "node": "Validate Data",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Validate Data": {
+        "main": [
+          [
+            {
+              "node": "If",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "If": {
+        "main": [
+          [
+            {
+              "node": "Send Confirmation",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Request Missing Data",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    }
+  }
