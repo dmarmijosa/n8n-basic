@@ -1,6 +1,9 @@
-FROM n8nio/n8n:latest
+FROM node:18-alpine
 
-# Variables de entorno
+# Instalar n8n
+RUN npm install -g n8n
+
+# Configurar variables de entorno
 ENV N8N_BASIC_AUTH_ACTIVE=true
 ENV N8N_BASIC_AUTH_USER=admin
 ENV N8N_BASIC_AUTH_PASSWORD=root
@@ -13,5 +16,5 @@ ENV NODE_ENV=production
 
 EXPOSE 5678
 
-# 👉 Este CMD sí funciona porque Render lo ejecuta con una shell por defecto
-CMD n8n
+# Comando para iniciar n8n
+CMD ["n8n"]
