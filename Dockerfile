@@ -14,4 +14,4 @@ ENV NODE_ENV=production
 EXPOSE 5678
 
 # Comando para iniciar n8n
-CMD ["n8n"]
+CMD ["/usr/local/bin/n8n"]
