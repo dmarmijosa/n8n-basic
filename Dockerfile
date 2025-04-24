@@ -1,6 +1,6 @@
 FROM n8nio/n8n:latest
 
-# Configura variables de entorno
+# Variables de entorno
 ENV N8N_BASIC_AUTH_ACTIVE=true
 ENV N8N_BASIC_AUTH_USER=admin
 ENV N8N_BASIC_AUTH_PASSWORD=root
@@ -13,5 +13,5 @@ ENV NODE_ENV=production
 
 EXPOSE 5678
 
-# Este CMD sí funciona en Render
-CMD ["sh", "-c", "n8n"]
+# 👉 Este CMD sí funciona porque Render lo ejecuta con una shell por defecto
+CMD n8n
