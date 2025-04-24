@@ -10,13 +10,9 @@ services:
       - N8N_BASIC_AUTH_ACTIVE=true
       - N8N_BASIC_AUTH_USER=admin
       - N8N_BASIC_AUTH_PASSWORD=root
-      - N8N_HOST=localhost
+      - N8N_HOST=${N8N_HOST}
       - N8N_PROTOCOL=https
-      - WEBHOOK_URL=localhost
+      - WEBHOOK_URL=${WEBHOOK_URL}
       - NODE_ENV=production
     volumes:
       - ~/.n8n:/home/node/.n8n
-
-
-
-
