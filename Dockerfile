@@ -14,4 +14,4 @@ ENV NODE_ENV=production
 EXPOSE 5678
 
 # Iniciar dinámicamente usando variable automática de Render
-CMD ["sh", "-c", "export WEBHOOK_URL=$RENDER_EXTERNAL_URL && export N8N_HOST=$(echo $RENDER_EXTERNAL_URL | sed -e 's|https://||' -e 's|http://||') && n8n"]
+CMD ["sh", "-c", "export NODE_OPTIONS='--dns-result-order=ipv4first' && export WEBHOOK_URL=$RENDER_EXTERNAL_URL && export N8N_HOST=$(echo $RENDER_EXTERNAL_URL | sed -e 's|https://||' -e 's|http://||') && n8n"]
