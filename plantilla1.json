@@ -1,16 +1,14 @@
 {
-    "name": "TaxiBot Workflow",
+    "name": "TaxiBot Full Conversation",
     "nodes": [
       {
         "id": "1",
         "name": "Telegram Trigger",
         "type": "n8n-nodes-base.telegramTrigger",
         "typeVersion": 1,
-        "position": [250, 300],
+        "position": [200, 200],
         "credentials": {
-          "telegramApi": {
-            "id": "7200590511:AAFul-4QAXTjhBpqTTc7EN94UKoujaUBWHw"
-          }
+          "telegramApi": { "id": "YOUR_TELEGRAM_CREDENTIAL_ID" }
         },
         "parameters": {
           "update": "message"
@@ -18,36 +16,25 @@
       },
       {
         "id": "2",
-        "name": "AI Agent",
-        "type": "n8n-nodes-base.deepSeekChat",
+        "name": "Check Welcome",
+        "type": "n8n-nodes-base.function",
         "typeVersion": 1,
-        "position": [450, 300],
+        "position": [400, 200],
         "parameters": {
-          "model": "deepSeek-chat-model",
-          "prompt": "Eres un sistema de reservas de taxis. Necesito que devuelvas los siguientes datos en formato JSON solo si están presentes:\n\n{\n  \"nombre\": \"\",\n  \"telefono\": \"\",\n  \"ubicacion\": \"\",\n  \"destino\": \"\"\n}\n\nSi falta algún campo obligatorio (nombre, telefono o ubicación), responde con un mensaje claro solicitando al usuario que los proporcione. Solo responde en JSON cuando tengas la información completa."
+          "functionCode": "const chatId = items[0].json.message.chat.id;\nconst sd = await this.getWorkflowStaticData('global');\nif (!sd.welcomeSent) sd.welcomeSent = {};\nif (!sd.welcomeSent[chatId]) {\n  sd.welcomeSent[chatId] = true;\n  return [{ json: { sendWelcome: true, chatId } }];\n}\nreturn [{ json: { sendWelcome: false, chatId } }];"
         }
       },
       {
         "id": "3",
-        "name": "Validate Data",
-        "type": "n8n-nodes-base.function",
-        "typeVersion": 1,
-        "position": [650, 300],
-        "parameters": {
-          "functionCode": "const msg = items[0].json;\n\nconst nombre = msg.nombre;\nconst telefono = msg.telefono;\nconst ubicacion = msg.ubicacion;\nconst destino = msg.destino || null;\n\nif (nombre && telefono && ubicacion) {\n  return [{ json: { validacion: true, ...msg }}];\n} else {\n  return [{ json: { validacion: false, ...msg }}];\n}"
-        }
-      },
-      {
-        "id": "4",
-        "name": "If",
+        "name": "If Welcome",
         "type": "n8n-nodes-base.if",
         "typeVersion": 1,
-        "position": [850, 300],
+        "position": [600, 200],
         "parameters": {
           "conditions": {
             "boolean": [
               {
-                "value1": "={{$json[\"validacion\"]}}",
+                "value1": "={{$json[\"sendWelcome\"]}}",
                 "value2": true
               }
             ]
@@ -55,35 +42,109 @@
         }
       },
       {
-        "id": "5",
-        "name": "Send Confirmation",
+        "id": "4",
+        "name": "Send Welcome",
         "type": "n8n-nodes-base.telegram",
         "typeVersion": 1,
-        "position": [1050, 260],
+        "position": [800, 160],
         "credentials": {
-          "telegramApi": {
-            "id": "YOUR_TELEGRAM_CREDENTIAL_ID"
-          }
+          "telegramApi": { "id": "YOUR_TELEGRAM_CREDENTIAL_ID" }
         },
         "parameters": {
-          "chatId": "={{$json[\"message\"][\"chat\"][\"id\"]}}",
-          "text": "🚖 ¡Gracias! Estamos procesando tu solicitud. Un taxi irá a tu ubicación en breve."
+          "chatId": "={{$json[\"chatId\"]}}",
+          "text": "👋 ¡Hola! Soy tu sistema de reservas de taxis. Te pediré algunos datos en varios mensajes y te avisaré cuando tenga todo."
+        }
+      },
+      {
+        "id": "5",
+        "name": "AI Agent",
+        "type": "@n8n/n8n-nodes-langchain.agent",
+        "typeVersion": 1.9,
+        "position": [400, 400],
+        "credentials": {
+          "deepSeekApi": { "id": "YOUR_DEEPSEEK_CREDENTIAL_ID" }
+        },
+        "parameters": {
+          "promptType": "define",
+          "text": "={{ $json[\"message\"][\"text\"] }}",
+          "options": {
+            "systemMessage": "Eres un sistema de reservas de taxis. Cada vez que el usuario envíe texto o ubicación, extrae cualquiera de estas claves si están presentes: nombre, telefono, ubicacion, destino. Devuélvelas en JSON plano. Si no hay ninguna, responde con {}."
+          }
         }
       },
       {
         "id": "6",
+        "name": "Merge Data",
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 1,
+        "position": [600, 400],
+        "parameters": {
+          "mode": "mergeByIndex"
+        }
+      },
+      {
+        "id": "7",
+        "name": "Accumulate Data",
+        "type": "n8n-nodes-base.function",
+        "typeVersion": 1,
+        "position": [800, 400],
+        "parameters": {
+          "functionCode": "const d = items[0].json;\nconst chatId = d.message.chat.id;\nconst sd = await this.getWorkflowStaticData('global');\nif (!sd.formData) sd.formData = {};\nif (!sd.formData[chatId]) sd.formData[chatId] = {};\nconst f = sd.formData[chatId];\nif (d.nombre) f.nombre = d.nombre;\nif (d.telefono) f.telefono = d.telefono;\nif (d.ubicacion) f.ubicacion = d.ubicacion;\nif (d.destino) f.destino = d.destino;\n// save back\ntmp = {};\ntmp.chatId = chatId;\ntmp.nombre = f.nombre;\ntmp.telefono = f.telefono;\ntmp.ubicacion = f.ubicacion;\ntmp.destino = f.destino;\nreturn [{ json: tmp }];"
+        }
+      },
+      {
+        "id": "8",
+        "name": "Validate Data",
+        "type": "n8n-nodes-base.function",
+        "typeVersion": 1,
+        "position": [1000, 400],
+        "parameters": {
+          "functionCode": "const { chatId, nombre, telefono, ubicacion, destino } = items[0].json;\nconst valid = !!(nombre && telefono && ubicacion);\nreturn [{ json: { chatId, nombre, telefono, ubicacion, destino, valid } }];"
+        }
+      },
+      {
+        "id": "9",
+        "name": "If Data Complete",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 1,
+        "position": [1200, 400],
+        "parameters": {
+          "conditions": {
+            "boolean": [
+              {
+                "value1": "={{$json[\"valid\"]}}",
+                "value2": true
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "10",
+        "name": "Send Confirmation",
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1,
+        "position": [1400, 360],
+        "credentials": {
+          "telegramApi": { "id": "YOUR_TELEGRAM_CREDENTIAL_ID" }
+        },
+        "parameters": {
+          "chatId": "={{$json[\"chatId\"]}}",
+          "text": "🚖 ¡Gracias! Todos tus datos están completos. Estamos procesando tu solicitud, por favor espera un momento."
+        }
+      },
+      {
+        "id": "11",
         "name": "Request Missing Data",
         "type": "n8n-nodes-base.telegram",
         "typeVersion": 1,
-        "position": [1050, 340],
+        "position": [1400, 440],
         "credentials": {
-          "telegramApi": {
-            "id": "YOUR_TELEGRAM_CREDENTIAL_ID"
-          }
+          "telegramApi": { "id": "YOUR_TELEGRAM_CREDENTIAL_ID" }
         },
         "parameters": {
-          "chatId": "={{$json[\"message\"][\"chat\"][\"id\"]}}",
-          "text": "⚠️ Faltan algunos datos. Por favor, envíame la siguiente información:\n\n📍 Ubicación  \n👤 Nombre  \n📞 Teléfono  \n📌 (Opcional) Destino\n\nCuando los tengas listos, escríbelos todos en un solo mensaje. ¡Gracias!"
+          "chatId": "={{$json[\"chatId\"]}}",
+          "text": "⚠️ Faltan datos. Por favor envíame en cualquier orden:\n\n👤 Nombre\n📞 Teléfono\n📍 Ubicación (escríbela o compártela)\n📌 Destino (opcional)\n\nResponderé cuando tenga todo."
         }
       }
     ],
@@ -91,51 +152,63 @@
       "Telegram Trigger": {
         "main": [
           [
-            {
-              "node": "AI Agent",
-              "type": "main",
-              "index": 0
-            }
+            { "node": "Check Welcome", "type": "main", "index": 0 },
+            { "node": "Merge Data",     "type": "main", "index": 0 }
+          ]
+        ]
+      },
+      "Check Welcome": {
+        "main": [
+          [
+            { "node": "If Welcome", "type": "main", "index": 0 }
+          ]
+        ]
+      },
+      "If Welcome": {
+        "main": [
+          [
+            { "node": "Send Welcome", "type": "main", "index": 0 }
+          ],
+          [
+            { "node": "AI Agent",     "type": "main", "index": 0 }
           ]
         ]
       },
       "AI Agent": {
         "main": [
           [
-            {
-              "node": "Validate Data",
-              "type": "main",
-              "index": 0
-            }
+            { "node": "Merge Data", "type": "main", "index": 1 }
+          ]
+        ]
+      },
+      "Merge Data": {
+        "main": [
+          [
+            { "node": "Accumulate Data", "type": "main", "index": 0 }
+          ]
+        ]
+      },
+      "Accumulate Data": {
+        "main": [
+          [
+            { "node": "Validate Data", "type": "main", "index": 0 }
           ]
         ]
       },
       "Validate Data": {
         "main": [
           [
-            {
-              "node": "If",
-              "type": "main",
-              "index": 0
-            }
+            { "node": "If Data Complete", "type": "main", "index": 0 }
           ]
         ]
       },
-      "If": {
+      "If Data Complete": {
         "main": [
           [
-            {
-              "node": "Send Confirmation",
-              "type": "main",
-              "index": 0
-            }
+            { "node": "Send Confirmation",    "type": "main", "index": 0 }
           ],
           [
-            {
-              "node": "Request Missing Data",
-              "type": "main",
-              "index": 0
-            }
+            { "node": "Request Missing Data", "type": "main", "index": 0 }
           ]
         ]
       }
